@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\SimpleCache\CacheInterface;
 
+
 class Cache
 {
     /**
@@ -28,12 +29,7 @@ class Cache
     public function __construct(CacheInterface $cache, $options = [])
     {
         $this->cache = $cache;
-        $this->options = array_merge([
-            'enabled' => true,
-            'ttl' => null,
-            'bypass' => false,
-            'keyPrefix' => ''
-        ], $options);
+        $this->options = $options;
     }
 
     /**
@@ -42,15 +38,15 @@ class Cache
     public function __invoke(callable $handler): callable
     {
         return function (RequestInterface $request, array $options) use (&$handler) {
-            $cacheOptions = array_merge($this->options, $options['cache']);
+            $localOptions = (new Cache\Options($this->options, $options['cache']));
 
-            if ((bool)$cacheOptions['enabled'] === false) {
+            if (!$localOptions->isEnabled()) {
                 return $handler($request, $options);
             }
 
-            $key = $this->getKey($request->getUri(), $cacheOptions['keyPrefix']);
+            $key = $this->getKey($request->getUri(), $localOptions->getSalt());
 
-            if ((int)$cacheOptions['bypass'] !== 1) {
+            if ($localOptions->canBypassRequest() === false) {
                 if (($entry = $this->get($key)) !== null) {
                    return $entry;
                 }
@@ -59,8 +55,17 @@ class Cache
             $promise = $handler($request, $options);
 
             return $promise->then(
-                function (ResponseInterface $response) use ($cacheOptions, $key) {
-                    $this->save($key, $response, $cacheOptions['ttl'] ?? null);
+                function (ResponseInterface $response) use ($localOptions, $key) {
+                    if (!$response) {
+                        return $response;
+                    }
+
+                    if (!$localOptions->isStatusCacheable($response->getStatusCode())) {
+                        return $response;
+                    }
+
+                    $this->save($key, $response, $localOptions->getTtl());
+
                     return $response;
                 }
             );
@@ -92,12 +97,8 @@ class Cache
     /**
      *
      */
-    protected function save(string $key, ?ResponseInterface $response, ?int $ttl = null): bool
+    protected function save(string $key, ?ResponseInterface $response, ?int $ttl): bool
     {
-        if ($response && $response->getStatusCode() !== 200) {
-            return false;
-        }
-
         $responseBody = (string)$response->getBody();
         $saved = $this->cache->set($key, $responseBody, $ttl);
 
