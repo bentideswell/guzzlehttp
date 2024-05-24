@@ -1,0 +1,14 @@
+{
+    "name": "bentideswell/guzzlehttp",
+    "description": "Adds a local and permenant cache to GuzzleHttp.",
+    "autoload": {
+        "psr-4": {
+            "FishPig\\GuzzleHttp\\": "src/"
+        }
+    },
+    "require": {
+        "guzzlehttp/guzzle": "^7.8",
+        "psr/simple-cache": "*",
+        "symfony/cache": "*"
+    }
+}
