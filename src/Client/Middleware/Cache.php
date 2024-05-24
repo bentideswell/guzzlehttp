@@ -66,15 +66,13 @@ class Cache
 
             return $promise->then(
                 function (ResponseInterface $response) use ($localOptions, $key) {
-                    if (!$response) {
-                        return $response;
-                    }
+                    if ($response) {
+                        $isStatusCacheable = array_intersect(['*', $response->getStatusCode()], $localOptions['cacheableStatusCodes']);
 
-                    if (!$localOptions->isStatusCacheable($response->getStatusCode())) {
-                        return $response;
+                        if ($isStatusCacheable) {
+                            $this->save($key, $response, $localOptions['ttl']);
+                        }
                     }
-
-                    $this->save($key, $response, $localOptions['ttl']);
 
                     return $response;
                 }
