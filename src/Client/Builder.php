@@ -68,7 +68,7 @@ class Builder
     /**
      *
      */
-    public function withCacheableStatusCodes(array $codes = null): self
+    public function withCacheableStatusCodes(?array $codes = null): self
     {
         return $this->withCache([
             'cacheableStatusCodes' => $codes ?? CacheMiddleware::getDefaultCacheableStatusCodes()
